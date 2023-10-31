@@ -31,7 +31,7 @@ $fs = 0.25;
 // number of bases along x-axis
 grid_dimensions_1 = 1;  
 // number of bases along y-axis   
-grid_dimensions_2 = 2;  
+grid_dimensions_2 = 1;  
 // bin height. See bin height information and "gridz_define" below.  
 gridz = 3.5;
 
