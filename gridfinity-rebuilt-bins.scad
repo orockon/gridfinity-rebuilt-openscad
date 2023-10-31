@@ -29,11 +29,11 @@ $fs = 0.25;
 
 /* [General Settings] */
 // number of bases along x-axis
-gridx = 5;  
+grid_dimensions_1 = 1;  
 // number of bases along y-axis   
-gridy = 5;  
+grid_dimensions_2 = 2;  
 // bin height. See bin height information and "gridz_define" below.  
-gridz = 6;
+gridz = 3.5;
 
 /* [Compartments] */
 // number of X Divisions (set to zero to have solid bin)
@@ -51,108 +51,137 @@ enable_zsnap = false;
 
 /* [Features] */
 // the type of tabs
-style_tab = 1; //[0:Full,1:Auto,2:Left,3:Center,4:Right,5:None]
+style_tab = 5; //[0:Full,1:Auto,2:Left,3:Center,4:Right,5:None]
 // how should the top lip act
-style_lip = 0; //[0: Regular lip, 1:remove lip subtractively, 2: remove lip and retain height]
+style_lip = 2; //[0: Regular lip, 1:remove lip subtractively, 2: remove lip and retain height]
 // scoop weight percentage. 0 disables scoop, 1 is regular scoop. Any real number will scale the scoop. 
-scoop = 1; //[0:0.1:1]
+scoop = 0; //[0:0.1:1]
 // only cut magnet/screw holes at the corners of the bin to save uneccesary print time
 only_corners = false;
 
 /* [Base] */
-style_hole = 3; // [0:no holes, 1:magnet holes only, 2: magnet and screw holes - no printable slit, 3: magnet and screw holes - printable slit]
+style_hole = 0; // [0:no holes, 1:magnet holes only, 2: magnet and screw holes - no printable slit, 3: magnet and screw holes - printable slit]
 // number of divisions per 1 unit of base along the X axis. (default 1, only use integers. 0 means automatically guess the right division)
 div_base_x = 0;
 // number of divisions per 1 unit of base along the Y axis. (default 1, only use integers. 0 means automatically guess the right division)
 div_base_y = 0; 
 
 
-
 // ===== IMPLEMENTATION ===== //
 
+show_bin = true;
+show_lid = false;
+hinge_diam = 4;
+hinge_hole = 2;
+hinge_gap = .4;
+
+function pick_longer(x,y) = (x>=y) ? x : y;
+function pick_shorter(x,y) = (x<y) ? x : y;
+
+/* [Hidden] */
+gridx = pick_longer(grid_dimensions_1,grid_dimensions_2);
+gridy = pick_shorter(grid_dimensions_1,grid_dimensions_2);
+
+module horizontal_hinge(l, diam, rot) {
+    //translate([0,0,diam/2])
+    rotate(rot)
+    cylinder(h=l,d=diam,center=true);
+}
+
+function hing_len() = ((gridx * l_grid)/1.75);
+
+function hinge_rot() = [0,90,0];
+
+module relocate_hinge(diam) {
+        translate([0, ((gridy*l_grid)/2)-(diam/2)-.25,height(gridz+1, gridz_define, style_lip, enable_zsnap)-h_base-hinge_gap+1])
+        children();
+}
+
+module cylinder_hinge() {
+    diam=hinge_diam;
+    translate([0,0,diam/2]){    
+        hinge_length = hing_len();
+        echo(gridy);
+        hinge_l2 = hinge_length/3;
+        if(show_bin){
+            horizontal_hinge(hinge_l2, diam, hinge_rot());
+            translate([0,0,-(diam/2)-hinge_gap]){       
+                rotate([0,-90,0])
+    translate([0,-(diam/2),0])
+    linear_extrude((hinge_l2),center=true)
+    polygon([
+    [-diam,diam],
+    [diam/2+hinge_gap,diam],
+    [diam/2+hinge_gap,0],
+    [0,0],
+    ]);
+            }
+        }
+        if(show_lid)
+        {
+            translate([hinge_l2,0,0]){
+            horizontal_hinge(hinge_l2, diam, hinge_rot());
+            translate([-hinge_l2/2,-(diam/2),0])
+            cube([hinge_l2,diam,(diam/2)+hinge_gap]);
+            }
+            translate([-hinge_l2,0,0]){ 
+            horizontal_hinge(hinge_l2, diam, hinge_rot());
+                translate([-hinge_l2/2,-(diam/2),0])
+            cube([hinge_l2,diam,(diam/2)+hinge_gap]);
+            }
+        }
+}
+}
+
+difference(){
+union(){
+if (show_bin) {
 color("tomato") {
-gridfinityInit(gridx, gridy, height(gridz, gridz_define, style_lip, enable_zsnap), height_internal) {
+difference(){
+union(){
+gridfinityInit(gridx, gridy, height(gridz, gridz_define, 0, enable_zsnap), height_internal, lip = 0) {
 
     if (divx > 0 && divy > 0)
     cutEqual(n_divx = divx, n_divy = divy, style_tab = style_tab, scoop_weight = scoop);
 }
 gridfinityBase(gridx, gridy, l_grid, div_base_x, div_base_y, style_hole, only_corners=only_corners);
-
+}
+relocate_hinge(hinge_diam)
+translate([-(hing_len()/2),-2,-hinge_gap])
+cube([hing_len(),hinge_diam,hinge_diam]);
+relocate_hinge(hinge_diam)
+translate([-((gridx*l_grid)/2),-2,hinge_gap])
+cube([(gridx*l_grid),hinge_diam,hinge_hole]);
+}
+}
 }
 
+if (show_lid) {
+difference(){
+union(){
+translate([0, 0,  height(gridz, gridz_define, style_lip, enable_zsnap)]){
+color("green") {
+gridfinityInit(gridx, gridy, height(1, gridz_define, 0, enable_zsnap), height_internal,lip=0) {
 
-// ===== EXAMPLES ===== //
-
-// 3x3 even spaced grid
-/*
-gridfinityInit(3, 3, height(6), 0, 42) {
-	cutEqual(n_divx = 3, n_divy = 3, style_tab = 0, scoop_weight = 0);
+    if (divx > 0 && divy > 0)
+    cutEqual(n_divx = divx, n_divy = divy, style_tab = style_tab, scoop_weight = scoop);
 }
-gridfinityBase(3, 3, 42, 0, 0, 1);
-*/
-
-// Compartments can be placed anywhere (this includes non-integer positions like 1/2 or 1/3). The grid is defined as (0,0) being the bottom left corner of the bin, with each unit being 1 base long. Each cut() module is a compartment, with the first four values defining the area that should be made into a compartment (X coord, Y coord, width, and height). These values should all be positive. t is the tab style of the compartment (0:full, 1:auto, 2:left, 3:center, 4:right, 5:none). s is a toggle for the bottom scoop. 
-/*
-gridfinityInit(3, 3, height(6), 0, 42) {
-    cut(x=0, y=0, w=1.5, h=0.5, t=5, s=0);
-    cut(0, 0.5, 1.5, 0.5, 5, 0);
-    cut(0, 1, 1.5, 0.5, 5, 0);
-    
-    cut(0,1.5,0.5,1.5,5,0);
-    cut(0.5,1.5,0.5,1.5,5,0);
-    cut(1,1.5,0.5,1.5,5,0);
-    
-    cut(1.5, 0, 1.5, 5/3, 2);
-    cut(1.5, 5/3, 1.5, 4/3, 4);
 }
-gridfinityBase(3, 3, 42, 0, 0, 1);
-*/
-
-// Compartments can overlap! This allows for weirdly shaped compartments, such as this "2" bin. 
-/*
-gridfinityInit(3, 3, height(6), 0, 42)  {
-    cut(0,2,2,1,5,0);
-    cut(1,0,1,3,5);
-    cut(1,0,2,1,5);
-    cut(0,0,1,2);
-    cut(2,1,1,2);
 }
-gridfinityBase(3, 3, 42, 0, 0, 1);
-*/
-
-// Areas without a compartment are solid material, where you can put your own cutout shapes. using the cut_move() function, you can select an area, and any child shapes will be moved from the origin to the center of that area, and subtracted from the block. For example, a pattern of three cylinderical holes.
-/*
-gridfinityInit(3, 3, height(6), 0, 42) {
-    cut(x=0, y=0, w=2, h=3);
-    cut(x=0, y=0, w=3, h=1, t=5);
-    cut_move(x=2, y=1, w=1, h=2) 
-        pattern_linear(x=1, y=3, sx=42/2) 
-            cylinder(r=5, h=1000, center=true);
 }
-gridfinityBase(3, 3, 42, 0, 0, 1);
-*/
-
-// You can use loops as well as the bin dimensions to make different parametric functions, such as this one, which divides the box into columns, with a small 1x1 top compartment and a long vertical compartment below
-/*
-gx = 3;
-gy = 3;
-gridfinityInit(gx, gy, height(6), 0, 42) {
-    for(i=[0:gx-1]) {
-        cut(i,0,1,gx-1);
-        cut(i,gx-1,1,1);
-    }
+relocate_hinge(hinge_diam)
+translate([-(hing_len()/2),-2,hinge_gap])
+cube([hing_len(),hinge_diam,hinge_diam]);
 }
-gridfinityBase(gx, gy, 42, 0, 0, 1);
-*/
-
-// Pyramid scheme bin
-/*
-gx = 4.5;
-gy = 4;
-gridfinityInit(gx, gy, height(6), 0, 42) {
-    for (i = [0:gx-1]) 
-    for (j = [0:i])
-    cut(j*gx/(i+1),gy-i-1,gx/(i+1),1,0);
 }
-gridfinityBase(gx, gy, 42, 0, 0, 1);
-*/
+relocate_hinge(hinge_diam){
+cylinder_hinge();
+}
+}
+
+relocate_hinge(hinge_diam){
+translate([0,0,2])
+rotate(hinge_rot())
+cylinder(h=hing_len()*2,d=hinge_hole,center=true);
+}
+}

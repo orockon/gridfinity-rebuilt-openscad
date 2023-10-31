@@ -16,14 +16,14 @@ function height (z,d=0,l=0,s=true) = (s?((abs(hf(z,d,l))%7==0)?hf(z,d,l):hf(z,d,
 //          set n_div values to 0 for a solid bin 
 // style_tab:   tab style for all compartments. see cut()
 // scoop_weight:    scoop toggle for all compartments. see cut()
-module cutEqual(n_divx=1, n_divy=1, style_tab=1, scoop_weight=1) {
+module cutEqual(n_divx=1, n_divy=1, style_tab=1, scoop_weight=1, lip = 0) {
     for (i = [1:n_divx]) 
     for (j = [1:n_divy])
-    cut((i-1)*$gxx/n_divx,(j-1)*$gyy/n_divy, $gxx/n_divx, $gyy/n_divy, style_tab, scoop_weight);
+    cut((i-1)*$gxx/n_divx,(j-1)*$gyy/n_divy, $gxx/n_divx, $gyy/n_divy, style_tab, scoop_weight, lip);
 }
 
 // initialize gridfinity
-module gridfinityInit(gx, gy, h, h0 = 0, l = l_grid) {
+module gridfinityInit(gx, gy, h, h0 = 0, l = l_grid, lip = 0) {
     $gxx = gx;
     $gyy = gy;
     $dh = h; 
@@ -36,7 +36,7 @@ module gridfinityInit(gx, gy, h, h0 = 0, l = l_grid) {
     }
     color("royalblue") 
     block_wall(gx, gy, l) {
-        if (style_lip == 0) profile_wall();
+        if (lip == 0) profile_wall();
         else profile_wall2();
     } 
     }
@@ -53,10 +53,10 @@ module gridfinityInit(gx, gy, h, h0 = 0, l = l_grid) {
 //      0:full, 1:auto, 2:left, 3:center, 4:right, 5:none
 //      Automatic alignment will use left tabs for bins on the left edge, right tabs for bins on the right edge, and center tabs everywhere else. 
 // s:   toggle the rounded back corner that allows for easy removal
-module cut(x=0, y=0, w=1, h=1, t=1, s=1) {
+module cut(x=0, y=0, w=1, h=1, t=1, s=1, lip = 0) {
     translate([0,0,-$dh-h_base])
     cut_move(x,y,w,h)
-    block_cutter(clp(x,0,$gxx), clp(y,0,$gyy), clp(w,0,$gxx-x), clp(h,0,$gyy-y), t, s);
+    block_cutter(clp(x,0,$gxx), clp(y,0,$gyy), clp(w,0,$gxx-x), clp(h,0,$gyy-y), t, s,lip);
 }
 
 // Translates an object from the origin point to the center of the requested compartment block, can be used to add custom cuts in the bin
@@ -228,7 +228,7 @@ module cut_move_unsafe(x, y, w, h) {
     children();
 }
 
-module block_cutter(x,y,w,h,t,s) {
+module block_cutter(x,y,w,h,t,s,lip) {
     
     v_len_tab = d_tabh;
     v_len_lip = d_wall2-d_wall+1.2;
@@ -237,10 +237,10 @@ module block_cutter(x,y,w,h,t,s) {
     v_ang_tab = a_tab;
     v_ang_lip = 45;
     
-    ycutfirst = y == 0 && style_lip == 0;
-    ycutlast = abs(y+h-$gyy)<0.001 && style_lip == 0; 
-    xcutfirst = x == 0 && style_lip == 0;
-    xcutlast = abs(x+w-$gxx)<0.001 && style_lip == 0;
+    ycutfirst = y == 0 && lip == 0;
+    ycutlast = abs(y+h-$gyy)<0.001 && lip == 0; 
+    xcutfirst = x == 0 && lip == 0;
+    xcutlast = abs(x+w-$gxx)<0.001 && lip == 0;
     zsmall = ($dh+h_base)/7 < 3;
     
     ylen = h*($gyy*l_grid+d_magic)/$gyy-d_div; 
@@ -256,7 +256,7 @@ module block_cutter(x,y,w,h,t,s) {
     translate([0,ylen/2,h_base+h_bot])
     rotate([90,0,-90]) {
     
-    if (!zsmall && xlen - d_tabw > 4*r_f2 && (t != 0 && t != 5)) {
+    if (!zsmall && xlen - d_tabw > 4*r_f2 && t != 0) {
         fillet_cutter(3,"bisque")
         difference() {
             transform_tab(style, xlen, ((xcutfirst&&style==-1)||(xcutlast&&style==1))?v_cut_lip:0)
